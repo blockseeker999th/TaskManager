@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/gorilla/mux"
+	"golang.org/x/crypto/bcrypt"
 	"io"
 	"net/http"
 )
@@ -22,6 +23,7 @@ func NewUserService(s Store) *UserService {
 
 func (s *UserService) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/users/register", s.handleUserRegister).Methods("POST")
+	r.HandleFunc("/users/login", s.handleUserLogin).Methods("POST")
 }
 
 func (s *UserService) handleUserRegister(w http.ResponseWriter, r *http.Request) {
@@ -41,7 +43,7 @@ func (s *UserService) handleUserRegister(w http.ResponseWriter, r *http.Request)
 
 	hashedPassword, err := HashPassword(user.Password)
 
-	if err := validateUserPayload(user); err != nil {
+	if err := validateUserRegisterPayload(user); err != nil {
 		WriteJSON(w, http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 	}
 
@@ -60,7 +62,44 @@ func (s *UserService) handleUserRegister(w http.ResponseWriter, r *http.Request)
 	WriteJSON(w, http.StatusCreated, token)
 }
 
-func validateUserPayload(user *User) error {
+func (s *UserService) handleUserLogin(w http.ResponseWriter, r *http.Request) {
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		WriteJSON(w, http.StatusBadRequest, ErrorResponse{Error: "Invalid user credentials"})
+		return
+	}
+
+	defer r.Body.Close()
+
+	var loginData *LoginData
+	err = json.Unmarshal(body, &loginData)
+	if err != nil {
+		WriteJSON(w, http.StatusBadRequest, ErrorResponse{Error: "Invalid request payload"})
+		return
+	}
+
+	user, err := s.store.LoginUser(loginData)
+	if err != nil {
+		WriteJSON(w, http.StatusBadRequest, ErrorResponse{Error: "Invalid credentials"})
+		return
+	}
+
+	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(loginData.Password))
+	if err != nil {
+		WriteJSON(w, http.StatusUnauthorized, ErrorResponse{Error: "Invalid email or password"})
+		return
+	}
+
+	token, err := createAndSetAuthCookie(user.ID, w)
+	if err != nil {
+		WriteJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "Error creating session"})
+		return
+	}
+
+	WriteJSON(w, http.StatusOK, token)
+}
+
+func validateUserRegisterPayload(user *User) error {
 	if user.Email == "" {
 		return errEmailRequired
 	}

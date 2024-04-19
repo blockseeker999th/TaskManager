@@ -9,6 +9,7 @@ type Store interface {
 	GetUserByID(id string) (*User, error)
 	CreateTask(t *Task) (*Task, error)
 	GetTask(id string) (*Task, error)
+	LoginUser(data *LoginData) (*LoginData, error)
 }
 
 type Storage struct {
@@ -55,4 +56,11 @@ func (s *Storage) CreateUser(u *User) (*User, error) {
 	}
 
 	return u, nil
+}
+
+func (s *Storage) LoginUser(data *LoginData) (*LoginData, error) {
+	var l LoginData
+	err := s.db.QueryRow("SELECT id, email, password FROM users WHERE email = $1", data.Email).Scan(&l.ID, &l.Email, &l.Password)
+
+	return &l, err
 }

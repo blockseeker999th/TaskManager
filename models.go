@@ -29,3 +29,10 @@ type LoginData struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`
 }
+
+type Project struct {
+	ID           int64     `json:"ID"`
+	Name         string    `json:"name"`
+	AssignedToID int64     `json:"assignedToID"`
+	CreatedAt    time.Time `json:"createdAt"`
+}

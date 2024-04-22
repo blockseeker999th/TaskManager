@@ -9,9 +9,11 @@ import (
 	"net/http"
 )
 
-var errEmailRequired = errors.New("errEmailRequired")
-var errPasswordRequired = errors.New("errPasswordRequired")
-var errFirstNameRequired = errors.New("errFirstNameIsMandatory")
+var (
+	errEmailRequired     = errors.New("email required")
+	errPasswordRequired  = errors.New("password required")
+	errFirstNameRequired = errors.New("first name is mandatory")
+)
 
 type UserService struct {
 	store Store

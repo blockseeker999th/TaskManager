@@ -8,9 +8,11 @@ import (
 	"net/http"
 )
 
-var errNameRequired = errors.New("errNameRequired")
-var errProjectIDRequired = errors.New("errProjectIDRequired")
-var errUserIDRequired = errors.New("errUserIDRequired")
+var (
+	errTaskNameRequired  = errors.New("task name required")
+	errProjectIDRequired = errors.New("project id required")
+	errUserIDRequired    = errors.New("user id required")
+)
 
 type TaskService struct {
 	store Store
@@ -80,7 +82,7 @@ func (s *TaskService) handleGetTask(w http.ResponseWriter, r *http.Request) {
 
 func validateTaskPayload(t *Task) error {
 	if t.Name == "" {
-		return errNameRequired
+		return errTaskNameRequired
 	}
 
 	if t.ProjectID == 0 {

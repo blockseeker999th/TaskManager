@@ -12,7 +12,6 @@ func main() {
 	db, err := storage.InitNewPostgreSQLStorage()
 	if err != nil {
 		log.Fatalf("Error: %v", err)
-		log.Fatal("Error to initialize PostgreSQL")
 	}
 
 	defer func() {

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"github.com/golang-jwt/jwt"
 	"golang.org/x/crypto/bcrypt"
@@ -29,14 +30,9 @@ func WithJWTAuth(handlerFunc http.HandlerFunc, store Store) http.HandlerFunc {
 		claims := token.Claims.(jwt.MapClaims)
 		userID := claims["userID"].(string)
 
-		_, err = store.GetUserByID(userID)
-		if err != nil {
-			log.Println("Failed to authenticate token")
-			permissionDenied(w)
-			return
-		}
+		ctx := context.WithValue(r.Context(), "userID", userID)
 
-		handlerFunc(w, r)
+		handlerFunc(w, r.WithContext(ctx))
 	}
 }
 

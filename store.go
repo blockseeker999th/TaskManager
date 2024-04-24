@@ -9,11 +9,11 @@ type Store interface {
 	CreateProject(p *Project, userID string) (*Project, error)
 	GetProjectByID(id string) (*Project, error)
 	DeleteProjectByID(id string, userID string) error
-	CreateTask(t *Task) (*Task, error)
+	CreateTask(t *Task, userID string) (*Task, error)
 	GetTask(id string) (*Task, error)
 	CreateUser(u *User) (*User, error)
 	LoginUser(data *LoginData) (*LoginData, error)
-	GetUserByID(id string) (*User, error)
+	/*GetUserByID(id string) (*User, error)*/
 }
 
 type Storage struct {
@@ -64,9 +64,9 @@ func (s *Storage) DeleteProjectByID(id string, userID string) error {
 	return nil
 }
 
-func (s *Storage) CreateTask(t *Task) (*Task, error) {
-	err := s.db.QueryRow("INSERT INTO tasks (name, status, projectId, assignedToID) VALUES ($1, $2, $3, $4) RETURNING id",
-		t.Name, t.Status, t.ProjectID, t.AssignedToID).Scan(&t.ID)
+func (s *Storage) CreateTask(t *Task, userID string) (*Task, error) {
+	err := s.db.QueryRow("INSERT INTO tasks (name, status, projectid, assignedtoid) SELECT $1, $2, $3, projects.assignedtoid FROM projects WHERE projects.id = $3 AND projects.assignedtoid = $4 RETURNING id",
+		t.Name, t.Status, t.ProjectID, userID).Scan(&t.ID)
 
 	if err != nil {
 		return nil, err
@@ -104,9 +104,9 @@ func (s *Storage) LoginUser(data *LoginData) (*LoginData, error) {
 	return &l, err
 }
 
-func (s *Storage) GetUserByID(id string) (*User, error) {
+/*func (s *Storage) GetUserByID(id string) (*User, error) {
 	var u User
 	err := s.db.QueryRow("SELECT id, firstname, lastname, password, createdat FROM users WHERE id = $1", id).Scan(
 		&u.ID, &u.FirstName, &u.LastName, &u.Password, &u.CreatedAt)
 	return &u, err
-}
+}*/

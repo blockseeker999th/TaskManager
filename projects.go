@@ -57,7 +57,7 @@ func (s *ProjectService) handleCreateProject(w http.ResponseWriter, r *http.Requ
 		WriteJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "Error creating project"})
 	}
 
-	WriteJSON(w, http.StatusOK, p)
+	WriteJSON(w, http.StatusCreated, p)
 }
 
 func (s *ProjectService) handleGetProject(w http.ResponseWriter, r *http.Request) {

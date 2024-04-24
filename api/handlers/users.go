@@ -1,8 +1,13 @@
-package main
+package handlers
 
 import (
 	"encoding/json"
 	"errors"
+	"github.com/blockseeker999th/TaskManager/api/auth"
+	"github.com/blockseeker999th/TaskManager/config"
+	"github.com/blockseeker999th/TaskManager/db"
+	"github.com/blockseeker999th/TaskManager/models"
+	"github.com/blockseeker999th/TaskManager/utils"
 	"github.com/gorilla/mux"
 	"golang.org/x/crypto/bcrypt"
 	"io"
@@ -16,10 +21,10 @@ var (
 )
 
 type UserService struct {
-	store Store
+	store db.Store
 }
 
-func NewUserService(s Store) *UserService {
+func NewUserService(s db.Store) *UserService {
 	return &UserService{store: s}
 }
 
@@ -31,77 +36,77 @@ func (s *UserService) RegisterRoutes(r *mux.Router) {
 func (s *UserService) handleUserRegister(w http.ResponseWriter, r *http.Request) {
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
-		WriteJSON(w, http.StatusBadRequest, ErrorResponse{Error: "error reading response BODY"})
+		utils.WriteJSON(w, http.StatusBadRequest, models.ErrorResponse{Error: "error reading response BODY"})
 		return
 	}
 
 	defer r.Body.Close()
 
-	var user *User
+	var user *models.User
 	err = json.Unmarshal(body, &user)
 	if err != nil {
-		WriteJSON(w, http.StatusBadRequest, ErrorResponse{Error: "Invalid request payload"})
+		utils.WriteJSON(w, http.StatusBadRequest, models.ErrorResponse{Error: "Invalid request payload"})
 	}
 
-	hashedPassword, err := HashPassword(user.Password)
+	hashedPassword, err := auth.HashPassword(user.Password)
 
 	if err := validateUserRegisterPayload(user); err != nil {
-		WriteJSON(w, http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+		utils.WriteJSON(w, http.StatusBadRequest, models.ErrorResponse{Error: err.Error()})
 	}
 
 	user.Password = hashedPassword
 
 	u, err := s.store.CreateUser(user)
 	if err != nil {
-		WriteJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "Error registering a user"})
+		utils.WriteJSON(w, http.StatusInternalServerError, models.ErrorResponse{Error: "Error registering a user"})
 		return
 	}
 	token, err := createAndSetAuthCookie(u.ID, w)
 	if err != nil {
-		WriteJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "Error creating session"})
+		utils.WriteJSON(w, http.StatusInternalServerError, models.ErrorResponse{Error: "Error creating session"})
 		return
 	}
-	WriteJSON(w, http.StatusCreated, token)
+	utils.WriteJSON(w, http.StatusCreated, token)
 }
 
 func (s *UserService) handleUserLogin(w http.ResponseWriter, r *http.Request) {
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
-		WriteJSON(w, http.StatusBadRequest, ErrorResponse{Error: "Invalid user credentials"})
+		utils.WriteJSON(w, http.StatusBadRequest, models.ErrorResponse{Error: "Invalid user credentials"})
 		return
 	}
 
 	defer r.Body.Close()
 
-	var loginData *LoginData
+	var loginData *models.LoginData
 	err = json.Unmarshal(body, &loginData)
 	if err != nil {
-		WriteJSON(w, http.StatusBadRequest, ErrorResponse{Error: "Invalid request payload"})
+		utils.WriteJSON(w, http.StatusBadRequest, models.ErrorResponse{Error: "Invalid request payload"})
 		return
 	}
 
 	user, err := s.store.LoginUser(loginData)
 	if err != nil {
-		WriteJSON(w, http.StatusBadRequest, ErrorResponse{Error: "Invalid credentials"})
+		utils.WriteJSON(w, http.StatusBadRequest, models.ErrorResponse{Error: "Invalid credentials"})
 		return
 	}
 
 	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(loginData.Password))
 	if err != nil {
-		WriteJSON(w, http.StatusUnauthorized, ErrorResponse{Error: "Invalid email or password"})
+		utils.WriteJSON(w, http.StatusUnauthorized, models.ErrorResponse{Error: "Invalid email or password"})
 		return
 	}
 
 	token, err := createAndSetAuthCookie(user.ID, w)
 	if err != nil {
-		WriteJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "Error creating session"})
+		utils.WriteJSON(w, http.StatusInternalServerError, models.ErrorResponse{Error: "Error creating session"})
 		return
 	}
 
-	WriteJSON(w, http.StatusOK, token)
+	utils.WriteJSON(w, http.StatusOK, token)
 }
 
-func validateUserRegisterPayload(user *User) error {
+func validateUserRegisterPayload(user *models.User) error {
 	if user.Email == "" {
 		return errEmailRequired
 	}
@@ -118,8 +123,8 @@ func validateUserRegisterPayload(user *User) error {
 }
 
 func createAndSetAuthCookie(id int64, w http.ResponseWriter) (string, error) {
-	secret := []byte(Envs.JWTSecret)
-	token, err := CreateJWT(secret, id)
+	secret := []byte(config.Envs.JWTSecret)
+	token, err := auth.CreateJWT(secret, id)
 
 	if err != nil {
 		return "", err

@@ -1,8 +1,9 @@
-package main
+package db
 
 import (
 	"database/sql"
 	"fmt"
+	"github.com/blockseeker999th/TaskManager/config"
 	_ "github.com/lib/pq"
 	"log"
 )
@@ -11,7 +12,7 @@ type PostgreSQLStorage struct {
 	db *sql.DB
 }
 
-func ConnectToPostgreSQL(config PostgreSQLConfig) *PostgreSQLStorage {
+func ConnectToPostgreSQL(config config.PostgreSQLConfig) *PostgreSQLStorage {
 	connectionString := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
 		config.Host, config.Port, config.User, config.Password, config.DBName)
 

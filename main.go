@@ -1,13 +1,16 @@
 package main
 
 import (
+	api2 "github.com/blockseeker999th/TaskManager/api"
+	"github.com/blockseeker999th/TaskManager/config"
+	db2 "github.com/blockseeker999th/TaskManager/db"
 	"log"
 )
 
 func main() {
-	dbConfig := Envs
+	dbConfig := config.Envs
 
-	storage := ConnectToPostgreSQL(dbConfig)
+	storage := db2.ConnectToPostgreSQL(dbConfig)
 
 	db, err := storage.InitNewPostgreSQLStorage()
 	if err != nil {
@@ -20,7 +23,7 @@ func main() {
 		}
 	}()
 
-	store := NewStore(db)
-	api := NewAPIServer(":3000", store)
+	store := db2.NewStore(db)
+	api := api2.NewAPIServer(":3000", store)
 	api.Serve()
 }

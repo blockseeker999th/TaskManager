@@ -1,8 +1,11 @@
-package main
+package tests
 
 import (
 	"bytes"
 	"encoding/json"
+	"github.com/blockseeker999th/TaskManager/api/auth"
+	"github.com/blockseeker999th/TaskManager/api/handlers"
+	"github.com/blockseeker999th/TaskManager/models"
 	"github.com/gorilla/mux"
 	"net/http"
 	"net/http/httptest"
@@ -11,9 +14,9 @@ import (
 
 func TestCreateTask(test *testing.T) {
 	ms := &MockStore{}
-	service := NewTaskService(ms)
+	service := handlers.NewTaskService(ms)
 	test.Run("should return an error if name is empty", func(t *testing.T) {
-		payload := &Task{
+		payload := &models.Task{
 			Name:         "Create a new task",
 			ProjectID:    1,
 			AssignedToID: 42,
@@ -29,7 +32,7 @@ func TestCreateTask(test *testing.T) {
 		rr := httptest.NewRecorder()
 		router := mux.NewRouter()
 
-		router.HandleFunc("/tasks", WithJWTAuth(service.handleCreateTask, ms))
+		router.HandleFunc("/tasks", auth.WithJWTAuth(service.handleCreateTask, ms))
 
 		router.ServeHTTP(rr, req)
 
@@ -41,7 +44,7 @@ func TestCreateTask(test *testing.T) {
 
 func TestGetTask(test *testing.T) {
 	ms := &MockStore{}
-	service := NewTaskService(ms)
+	service := handlers.NewTaskService(ms)
 	test.Run("should return an error if name is empty", func(t *testing.T) {
 		req, err := http.NewRequest(http.MethodPost, "/tasks/42", nil)
 		if err != nil {
@@ -51,7 +54,7 @@ func TestGetTask(test *testing.T) {
 		rr := httptest.NewRecorder()
 		router := mux.NewRouter()
 
-		router.HandleFunc("/tasks", WithJWTAuth(service.handleCreateTask, ms))
+		router.HandleFunc("/tasks", auth.WithJWTAuth(service.handleCreateTask, ms))
 
 		router.ServeHTTP(rr, req)
 

@@ -1,8 +1,12 @@
-package main
+package auth
 
 import (
 	"context"
 	"fmt"
+	"github.com/blockseeker999th/TaskManager/config"
+	"github.com/blockseeker999th/TaskManager/db"
+	"github.com/blockseeker999th/TaskManager/models"
+	"github.com/blockseeker999th/TaskManager/utils"
 	"github.com/golang-jwt/jwt"
 	"golang.org/x/crypto/bcrypt"
 	"log"
@@ -12,7 +16,7 @@ import (
 	"time"
 )
 
-func WithJWTAuth(handlerFunc http.HandlerFunc, store Store) http.HandlerFunc {
+func WithJWTAuth(handlerFunc http.HandlerFunc, store db.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		tokenString := GetTokenFromRequest(r)
 		tokenString = strings.TrimPrefix(tokenString, "Bearer ")
@@ -37,7 +41,7 @@ func WithJWTAuth(handlerFunc http.HandlerFunc, store Store) http.HandlerFunc {
 }
 
 func permissionDenied(w http.ResponseWriter) {
-	WriteJSON(w, http.StatusUnauthorized, ErrorResponse{
+	utils.WriteJSON(w, http.StatusUnauthorized, models.ErrorResponse{
 		Error: fmt.Errorf("permission denied").Error(),
 	})
 }
@@ -58,7 +62,7 @@ func GetTokenFromRequest(r *http.Request) string {
 }
 
 func validateJWT(t string) (*jwt.Token, error) {
-	secret := Envs.JWTSecret
+	secret := config.Envs.JWTSecret
 	return jwt.Parse(t, func(t *jwt.Token) (interface{}, error) {
 		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])

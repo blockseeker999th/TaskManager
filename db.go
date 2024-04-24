@@ -51,6 +51,7 @@ func (s *PostgreSQLStorage) createProjectsTable() error {
     assignedToID INT NOT NULL,
     createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     
+    /*UNIQUE (name, assignedToID)*/
     FOREIGN KEY (assignedToID) REFERENCES users(id)
 )`)
 

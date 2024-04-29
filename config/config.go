@@ -1,6 +1,10 @@
 package config
 
-import "os"
+import (
+	"fmt"
+	"github.com/joho/godotenv"
+	"os"
+)
 
 type PostgreSQLConfig struct {
 	Host      string
@@ -14,11 +18,16 @@ type PostgreSQLConfig struct {
 var Envs = initConfig()
 
 func initConfig() PostgreSQLConfig {
+	err := godotenv.Load()
+	if err != nil {
+		fmt.Println("Error loading .env variables")
+	}
+
 	return PostgreSQLConfig{
-		Host:      getEnv("PG_HOST", "localhost"),
+		Host:      "db",
 		Port:      getEnv("PG_PORT", "5432"),
-		User:      getEnv("PG_USER", "aleks"),
-		Password:  getEnv("PG_PASSWORD", "tyu899uyt"),
+		User:      getEnv("PG_USER", "default"),
+		Password:  getEnv("PG_PASSWORD", "default"),
 		DBName:    getEnv("PG_DBNAME", "taskmanager"),
 		JWTSecret: getEnv("JWT_SECRET", "rand"),
 	}

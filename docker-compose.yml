@@ -1,0 +1,27 @@
+version: '3'
+
+services:
+  backend:
+    build: .
+    command:
+      - ./main
+    ports:
+      - "8080:3000"
+    depends_on:
+      - db
+    environment:
+      PG_PORT: 5432
+      PG_USER: ${PG_USER}
+      PG_PASSWORD: ${PG_PASSWORD}
+      PG_DBNAME: ${PG_DBNAME}
+      JWT_SECRET: ${JWT_SECRET}
+  db:
+    image: postgres:latest
+    volumes:
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: ${PG_USER}
+      POSTGRES_PASSWORD: ${PG_PASSWORD}
+      POSTGRES_DB: ${PG_DBNAME}

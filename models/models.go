@@ -3,7 +3,7 @@ package models
 import "time"
 
 type ErrorResponse struct {
-	Error string `json:"error"`
+	Error error `json:"error"`
 }
 
 type Task struct {

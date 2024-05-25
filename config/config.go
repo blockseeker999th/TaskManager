@@ -18,9 +18,9 @@ type PostgreSQLConfig struct {
 var Envs = initConfig()
 
 func initConfig() PostgreSQLConfig {
-	err := godotenv.Load()
+	err := godotenv.Load("../.env")
 	if err != nil {
-		fmt.Println("Error loading .env variables")
+		fmt.Println("Error loading .env variables", err)
 	}
 
 	return PostgreSQLConfig{

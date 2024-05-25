@@ -8,16 +8,15 @@ import (
 	"github.com/blockseeker999th/TaskManager/db"
 	"github.com/blockseeker999th/TaskManager/models"
 	"github.com/blockseeker999th/TaskManager/utils"
-	"github.com/gorilla/mux"
 	"golang.org/x/crypto/bcrypt"
 	"io"
 	"net/http"
 )
 
 var (
-	errEmailRequired     = errors.New("email required")
 	errPasswordRequired  = errors.New("password required")
 	errFirstNameRequired = errors.New("first name is mandatory")
+	errSignUp            = errors.New("error registering a user")
 )
 
 type UserService struct {
@@ -28,78 +27,93 @@ func NewUserService(s db.Store) *UserService {
 	return &UserService{store: s}
 }
 
-func (s *UserService) RegisterRoutes(r *mux.Router) {
-	r.HandleFunc("/users/register", s.handleUserRegister).Methods("POST")
-	r.HandleFunc("/users/login", s.handleUserLogin).Methods("POST")
-}
-
-func (s *UserService) handleUserRegister(w http.ResponseWriter, r *http.Request) {
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
-		utils.WriteJSON(w, http.StatusBadRequest, models.ErrorResponse{Error: "error reading response BODY"})
+func (s *UserService) HandleUserRegister(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		utils.WriteJSON(w, http.StatusMethodNotAllowed, utils.ErrMethodNotAllowed)
 		return
 	}
 
-	defer r.Body.Close()
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		utils.WriteJSON(w, http.StatusBadRequest, models.ErrorResponse{Error: utils.ErrReadingResponse})
+		return
+	}
+
+	defer func() {
+		err := r.Body.Close()
+		if err != nil {
+			return
+		}
+	}()
 
 	var user *models.User
 	err = json.Unmarshal(body, &user)
 	if err != nil {
-		utils.WriteJSON(w, http.StatusBadRequest, models.ErrorResponse{Error: "Invalid request payload"})
+		utils.WriteJSON(w, http.StatusBadRequest, models.ErrorResponse{Error: utils.ErrInvalidRequestPayload})
 	}
 
 	hashedPassword, err := auth.HashPassword(user.Password)
 
 	if err := validateUserRegisterPayload(user); err != nil {
-		utils.WriteJSON(w, http.StatusBadRequest, models.ErrorResponse{Error: err.Error()})
+		utils.WriteJSON(w, http.StatusBadRequest, models.ErrorResponse{Error: err})
 	}
 
 	user.Password = hashedPassword
 
 	u, err := s.store.CreateUser(user)
 	if err != nil {
-		utils.WriteJSON(w, http.StatusInternalServerError, models.ErrorResponse{Error: "Error registering a user"})
+		utils.WriteJSON(w, http.StatusInternalServerError, models.ErrorResponse{Error: errSignUp})
 		return
 	}
 	token, err := createAndSetAuthCookie(u.ID, w)
 	if err != nil {
-		utils.WriteJSON(w, http.StatusInternalServerError, models.ErrorResponse{Error: "Error creating session"})
+		utils.WriteJSON(w, http.StatusInternalServerError, models.ErrorResponse{Error: utils.ErrCreatingSession})
 		return
 	}
 	utils.WriteJSON(w, http.StatusCreated, token)
 }
 
-func (s *UserService) handleUserLogin(w http.ResponseWriter, r *http.Request) {
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
-		utils.WriteJSON(w, http.StatusBadRequest, models.ErrorResponse{Error: "Invalid user credentials"})
+func (s *UserService) HandleUserLogin(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		utils.WriteJSON(w, http.StatusMethodNotAllowed, utils.ErrMethodNotAllowed)
 		return
 	}
 
-	defer r.Body.Close()
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		utils.WriteJSON(w, http.StatusBadRequest, models.ErrorResponse{Error: utils.ErrInvalidRequestPayload})
+		return
+	}
+
+	defer func() {
+		err := r.Body.Close()
+		if err != nil {
+			return
+		}
+	}()
 
 	var loginData *models.LoginData
 	err = json.Unmarshal(body, &loginData)
 	if err != nil {
-		utils.WriteJSON(w, http.StatusBadRequest, models.ErrorResponse{Error: "Invalid request payload"})
+		utils.WriteJSON(w, http.StatusBadRequest, models.ErrorResponse{Error: utils.ErrInvalidRequestPayload})
 		return
 	}
 
 	user, err := s.store.LoginUser(loginData)
 	if err != nil {
-		utils.WriteJSON(w, http.StatusBadRequest, models.ErrorResponse{Error: "Invalid credentials"})
+		utils.WriteJSON(w, http.StatusBadRequest, models.ErrorResponse{Error: utils.ErrInvalidRequestPayload})
 		return
 	}
 
 	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(loginData.Password))
 	if err != nil {
-		utils.WriteJSON(w, http.StatusUnauthorized, models.ErrorResponse{Error: "Invalid email or password"})
+		utils.WriteJSON(w, http.StatusUnauthorized, models.ErrorResponse{Error: utils.ErrUnauthorized})
 		return
 	}
 
 	token, err := createAndSetAuthCookie(user.ID, w)
 	if err != nil {
-		utils.WriteJSON(w, http.StatusInternalServerError, models.ErrorResponse{Error: "Error creating session"})
+		utils.WriteJSON(w, http.StatusInternalServerError, models.ErrorResponse{Error: utils.ErrCreatingSession})
 		return
 	}
 
@@ -108,7 +122,7 @@ func (s *UserService) handleUserLogin(w http.ResponseWriter, r *http.Request) {
 
 func validateUserRegisterPayload(user *models.User) error {
 	if user.Email == "" {
-		return errEmailRequired
+		return utils.ErrEmailRequired
 	}
 
 	if user.Password == "" {

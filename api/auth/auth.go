@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/blockseeker999th/TaskManager/config"
-	"github.com/blockseeker999th/TaskManager/db"
 	"github.com/blockseeker999th/TaskManager/models"
 	"github.com/blockseeker999th/TaskManager/utils"
 	"github.com/golang-jwt/jwt"
@@ -16,7 +15,7 @@ import (
 	"time"
 )
 
-func WithJWTAuth(handlerFunc http.HandlerFunc, store db.Store) http.HandlerFunc {
+func WithJWTAuth(handlerFunc http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		tokenString := GetTokenFromRequest(r)
 		tokenString = strings.TrimPrefix(tokenString, "Bearer ")
@@ -42,7 +41,7 @@ func WithJWTAuth(handlerFunc http.HandlerFunc, store db.Store) http.HandlerFunc 
 
 func permissionDenied(w http.ResponseWriter) {
 	utils.WriteJSON(w, http.StatusUnauthorized, models.ErrorResponse{
-		Error: fmt.Errorf("permission denied").Error(),
+		Error: fmt.Errorf("permission denied"),
 	})
 }
 

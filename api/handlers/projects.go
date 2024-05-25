@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/blockseeker999th/TaskManager/api/auth"
 	"github.com/blockseeker999th/TaskManager/db"
 	"github.com/blockseeker999th/TaskManager/models"
 	"github.com/blockseeker999th/TaskManager/utils"
@@ -15,7 +14,8 @@ import (
 
 var (
 	errProjectNameRequired = errors.New("project name required")
-	errIDRequired          = errors.New("project id required")
+	errCreatingProject     = errors.New("error creating a project")
+	errProjectNotFound     = errors.New("not found project with such id")
 )
 
 type ProjectService struct {
@@ -27,69 +27,85 @@ func NewProjectService(s db.Store) *ProjectService {
 	return &ProjectService{store: s}
 }
 
-func (s *ProjectService) RegisterRoutes(r *mux.Router) {
-	r.HandleFunc("/projects", auth.WithJWTAuth(s.handleCreateProject, s.store)).Methods("POST")
-	r.HandleFunc("/projects/{id}", auth.WithJWTAuth(s.handleGetProject, s.store)).Methods("GET")
-	r.HandleFunc("/projects/{id}", auth.WithJWTAuth(s.handleDeleteProject, s.store)).Methods("DELETE")
-}
+func (s *ProjectService) HandleCreateProject(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		utils.WriteJSON(w, http.StatusMethodNotAllowed, models.ErrorResponse{Error: utils.ErrMethodNotAllowed})
+		return
+	}
 
-func (s *ProjectService) handleCreateProject(w http.ResponseWriter, r *http.Request) {
 	userID := r.Context().Value("userID").(string)
 
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
-		utils.WriteJSON(w, http.StatusBadRequest, models.ErrorResponse{Error: "Invalid request payload"})
+		utils.WriteJSON(w, http.StatusBadRequest, models.ErrorResponse{Error: utils.ErrInvalidRequestPayload})
 		return
 	}
+
+	defer func() {
+		err := r.Body.Close()
+		if err != nil {
+			return
+		}
+	}()
 
 	var project *models.Project
 	err = json.Unmarshal(body, &project)
 	if err != nil {
-		utils.WriteJSON(w, http.StatusBadRequest, models.ErrorResponse{Error: "Invalid request payload"})
+		utils.WriteJSON(w, http.StatusBadRequest, models.ErrorResponse{Error: utils.ErrInvalidRequestPayload})
 		return
 	}
 
 	err = validateProjectPayload(project)
 	if err != nil {
-		utils.WriteJSON(w, http.StatusBadRequest, models.ErrorResponse{Error: err.Error()})
+		utils.WriteJSON(w, http.StatusBadRequest, models.ErrorResponse{Error: err})
 		return
 	}
 
 	p, err := s.store.CreateProject(project, userID)
 	fmt.Println(err)
 	if err != nil {
-		utils.WriteJSON(w, http.StatusInternalServerError, models.ErrorResponse{Error: "Error creating project"})
+		utils.WriteJSON(w, http.StatusInternalServerError, models.ErrorResponse{Error: errCreatingProject})
 	}
 
 	utils.WriteJSON(w, http.StatusCreated, p)
 }
 
-func (s *ProjectService) handleGetProject(w http.ResponseWriter, r *http.Request) {
+func (s *ProjectService) HandleGetProject(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		utils.WriteJSON(w, http.StatusMethodNotAllowed, models.ErrorResponse{Error: utils.ErrMethodNotAllowed})
+		return
+	}
+
 	vars := mux.Vars(r)
 	id := vars["id"]
 
 	if id == "" {
-		utils.WriteJSON(w, http.StatusBadRequest, models.ErrorResponse{Error: "Project id is required"})
+		utils.WriteJSON(w, http.StatusBadRequest, models.ErrorResponse{Error: utils.ErrProjectIDRequired})
 		return
 	}
 
 	p, err := s.store.GetProjectByID(id)
 	if err != nil {
-		utils.WriteJSON(w, http.StatusInternalServerError, models.ErrorResponse{Error: "Error getting project by id"})
+		utils.WriteJSON(w, http.StatusInternalServerError, models.ErrorResponse{Error: errProjectNotFound})
 		return
 	}
 
 	utils.WriteJSON(w, http.StatusOK, p)
 }
 
-func (s *ProjectService) handleDeleteProject(w http.ResponseWriter, r *http.Request) {
+func (s *ProjectService) HandleDeleteProject(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodDelete {
+		utils.WriteJSON(w, http.StatusMethodNotAllowed, models.ErrorResponse{Error: utils.ErrMethodNotAllowed})
+		return
+	}
+
 	userID := r.Context().Value("userID").(string)
 
 	vars := mux.Vars(r)
 	id := vars["id"]
 
 	if id == "" {
-		utils.WriteJSON(w, http.StatusBadRequest, "Project id is required")
+		utils.WriteJSON(w, http.StatusBadRequest, utils.ErrProjectIDRequired)
 		return
 	}
 

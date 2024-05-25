@@ -2,8 +2,8 @@ package db
 
 import (
 	"database/sql"
-	"errors"
 	"github.com/blockseeker999th/TaskManager/models"
+	"github.com/blockseeker999th/TaskManager/utils"
 )
 
 type Store interface {
@@ -14,7 +14,6 @@ type Store interface {
 	GetTask(id string) (*models.Task, error)
 	CreateUser(u *models.User) (*models.User, error)
 	LoginUser(data *models.LoginData) (*models.LoginData, error)
-	/*GetUserByID(id string) (*User, error)*/
 }
 
 type Storage struct {
@@ -59,7 +58,7 @@ func (s *Storage) DeleteProjectByID(id string, userID string) error {
 	}
 
 	if rowsAffected == 0 {
-		return errors.New("unauthorized access")
+		return utils.ErrUnauthorized
 	}
 
 	return nil
@@ -104,10 +103,3 @@ func (s *Storage) LoginUser(data *models.LoginData) (*models.LoginData, error) {
 
 	return &l, err
 }
-
-/*func (s *Storage) GetUserByID(id string) (*User, error) {
-	var u User
-	err := s.db.QueryRow("SELECT id, firstname, lastname, password, createdat FROM users WHERE id = $1", id).Scan(
-		&u.ID, &u.FirstName, &u.LastName, &u.Password, &u.CreatedAt)
-	return &u, err
-}*/

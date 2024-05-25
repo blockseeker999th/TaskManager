@@ -3,7 +3,6 @@ package handlers
 import (
 	"encoding/json"
 	"errors"
-	"github.com/blockseeker999th/TaskManager/api/auth"
 	"github.com/blockseeker999th/TaskManager/db"
 	"github.com/blockseeker999th/TaskManager/models"
 	"github.com/blockseeker999th/TaskManager/utils"
@@ -13,9 +12,10 @@ import (
 )
 
 var (
-	errTaskNameRequired  = errors.New("task name required")
-	errProjectIDRequired = errors.New("project id required")
-	errUserIDRequired    = errors.New("user id required")
+	errTaskNameRequired = errors.New("task name required")
+	errTaskIdRequired   = errors.New("task id required")
+	errCreatingTask     = errors.New("error creating a task")
+	errNotFoundTask     = errors.New("not found task with such id")
 )
 
 type TaskService struct {
@@ -26,17 +26,21 @@ func NewTaskService(s db.Store) *TaskService {
 	return &TaskService{store: s}
 }
 
-func (s *TaskService) RegisterRoutes(r *mux.Router) {
-	r.HandleFunc("/tasks", auth.WithJWTAuth(s.handleCreateTask, s.store)).Methods("POST")
-	r.HandleFunc("/tasks/{id}", auth.WithJWTAuth(s.handleGetTask, s.store)).Methods("GET")
-}
+func (s *TaskService) HandleCreateTask(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		utils.WriteJSON(w, http.StatusMethodNotAllowed, models.ErrorResponse{Error: utils.ErrMethodNotAllowed})
+		return
+	}
 
-func (s *TaskService) handleCreateTask(w http.ResponseWriter, r *http.Request) {
-	userID := r.Context().Value("userID").(string)
+	userID, ok := r.Context().Value("userID").(string)
+	if !ok {
+		utils.WriteJSON(w, http.StatusUnauthorized, models.ErrorResponse{Error: utils.ErrUnauthorized})
+		return
+	}
 
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
-		utils.WriteJSON(w, http.StatusBadRequest, models.ErrorResponse{Error: "Invalid request payload"})
+		utils.WriteJSON(w, http.StatusBadRequest, models.ErrorResponse{Error: utils.ErrInvalidRequestPayload})
 		return
 	}
 
@@ -50,36 +54,41 @@ func (s *TaskService) handleCreateTask(w http.ResponseWriter, r *http.Request) {
 	var task *models.Task
 	err = json.Unmarshal(body, &task)
 	if err != nil {
-		utils.WriteJSON(w, http.StatusBadRequest, models.ErrorResponse{Error: "Invalid request payload"})
+		utils.WriteJSON(w, http.StatusBadRequest, models.ErrorResponse{Error: utils.ErrInvalidRequestPayload})
 		return
 	}
 
 	if err := validateTaskPayload(task); err != nil {
-		utils.WriteJSON(w, http.StatusBadRequest, models.ErrorResponse{Error: err.Error()})
+		utils.WriteJSON(w, http.StatusBadRequest, models.ErrorResponse{Error: err})
 		return
 	}
 
 	t, err := s.store.CreateTask(task, userID)
 	if err != nil {
-		utils.WriteJSON(w, http.StatusInternalServerError, models.ErrorResponse{Error: "Error creating task"})
+		utils.WriteJSON(w, http.StatusInternalServerError, models.ErrorResponse{Error: errCreatingTask})
 		return
 	}
 
 	utils.WriteJSON(w, http.StatusCreated, t)
 }
 
-func (s *TaskService) handleGetTask(w http.ResponseWriter, r *http.Request) {
+func (s *TaskService) HandleGetTask(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		utils.WriteJSON(w, http.StatusMethodNotAllowed, models.ErrorResponse{Error: utils.ErrMethodNotAllowed})
+		return
+	}
+
 	vars := mux.Vars(r)
 	id := vars["id"]
 
 	if id == "" {
-		utils.WriteJSON(w, http.StatusBadRequest, models.ErrorResponse{Error: "id is required"})
+		utils.WriteJSON(w, http.StatusBadRequest, models.ErrorResponse{Error: errTaskIdRequired})
 		return
 	}
 
 	t, err := s.store.GetTask(id)
 	if err != nil {
-		utils.WriteJSON(w, http.StatusInternalServerError, models.ErrorResponse{Error: "no such a task with this id"})
+		utils.WriteJSON(w, http.StatusInternalServerError, models.ErrorResponse{Error: errNotFoundTask})
 		return
 	}
 
@@ -92,7 +101,7 @@ func validateTaskPayload(t *models.Task) error {
 	}
 
 	if t.ProjectID == 0 {
-		return errProjectIDRequired
+		return utils.ErrProjectIDRequired
 	}
 
 	return nil
